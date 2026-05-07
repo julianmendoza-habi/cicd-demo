@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Fails if SonarQube reports any Security Hotspot still in TO_REVIEW status.
+# Pure POSIX shell parsing — no python / jq dependency, so it runs on
+# minimal Jenkins agent images (e.g. jenkins/jenkins:lts).
 set -euo pipefail
 
 : "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
@@ -9,12 +11,16 @@ set -euo pipefail
 URL="${SONAR_HOST_URL%/}/api/hotspots/search?projectKey=${SONAR_PROJECT_KEY}&status=TO_REVIEW&ps=1"
 
 RESPONSE="$(curl -fsS -u "${SONAR_TOKEN}:" "${URL}")"
-if command -v python3 >/dev/null 2>&1; then
-  PY=python3
-else
-  PY=python
+
+TOTAL="$(printf '%s' "${RESPONSE}" \
+  | tr -d '\n' \
+  | sed -n 's/.*"paging"[[:space:]]*:[[:space:]]*{[^}]*"total"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p')"
+
+if [[ -z "${TOTAL}" ]]; then
+  echo "Could not parse hotspots response from SonarQube:"
+  echo "${RESPONSE}"
+  exit 2
 fi
-TOTAL="$("${PY}" -c "import json,sys; print(json.loads(sys.argv[1])['paging']['total'])" "${RESPONSE}")"
 
 if [[ "${TOTAL}" -gt 0 ]]; then
   echo "Gatekeeping failed: ${TOTAL} Security Hotspot(s) still in TO_REVIEW."
