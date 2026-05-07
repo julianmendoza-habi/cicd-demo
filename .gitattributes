@@ -1,0 +1,23 @@
+# Force LF for shell/Unix scripts so they run on Linux Jenkins agents from Windows checkouts.
+* text=auto eol=lf
+
+mvnw            text eol=lf
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+Jenkinsfile     text eol=lf
+Makefile        text eol=lf
+
+# Windows-only files keep CRLF.
+*.cmd           text eol=crlf
+*.bat           text eol=crlf
+
+# Binary assets must not be touched by EOL normalization.
+*.jar           binary
+*.war           binary
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.zip           binary
+*.gz            binary
