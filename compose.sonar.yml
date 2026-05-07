@@ -1,7 +1,14 @@
-# Local SonarQube for pipeline integration (assignment §3).
-# Start: docker compose -f compose.sonar.yml up -d
-# UI: http://localhost:9000  (default login admin / admin — change password on first login)
-# Create project key matching SONAR_PROJECT_KEY in Jenkinsfile (default: cicd-demo).
+# Local SonarQube wired to the same Docker network as the Jenkins container
+# (circleguard-jenkins lives on circle-guard-public_circleguard).
+#
+# Start:
+#   docker compose -f compose.sonar.yml up -d
+# UI:
+#   http://localhost:9000   (default login admin / admin — change on first login)
+# From Jenkins pipeline:
+#   SONAR_HOST_URL=http://sonarqube:9000
+#
+# Project key (matches Jenkinsfile env): cicd-demo
 services:
   sonarqube:
     image: sonarqube:lts-community
@@ -14,8 +21,18 @@ services:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_extensions:/opt/sonarqube/extensions
       - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      circleguard:
+        aliases:
+          - sonarqube
+    restart: unless-stopped
 
 volumes:
   sonarqube_data:
   sonarqube_extensions:
   sonarqube_logs:
+
+networks:
+  circleguard:
+    external: true
+    name: circle-guard-public_circleguard

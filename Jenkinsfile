@@ -6,8 +6,8 @@ pipeline {
     parameters {
         string(
             name: 'SONAR_HOST_URL',
-            defaultValue: 'http://localhost:9000',
-            description: 'SonarQube base URL reachable from the Jenkins agent (use http://host.docker.internal:9000 if the agent runs in Docker on Windows/macOS).'
+            defaultValue: 'http://sonarqube:9000',
+            description: 'SonarQube base URL reachable from the Jenkins agent. Default uses the in-network DNS alias \'sonarqube\' (compose.sonar.yml attaches SonarQube to the same Docker network as circleguard-jenkins). Use http://host.docker.internal:9000 only if running outside that network.'
         )
     }
 

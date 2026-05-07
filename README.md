@@ -39,7 +39,11 @@ flowchart LR
 docker compose -f compose.sonar.yml up -d
 ```
 
-Open `http://localhost:9000`, change the default password, create a token under **My Account → Security**, and store it in Jenkins as **`sonar-token`**.
+This compose attaches SonarQube to the **existing external Docker network `circle-guard-public_circleguard`** (the one used by `circleguard-jenkins`) with the alias **`sonarqube`**, so the pipeline can reach it as **`http://sonarqube:9000`** with no port mapping needed inside the network. Port `9000` is also published to the host for the UI.
+
+Open `http://localhost:9000`, change the default password, create a token under **My Account → Security**, and store it in Jenkins as **`sonar-token`** (Secret text).
+
+If your Jenkins container is on a different network, change `compose.sonar.yml` to point at it (`networks.circleguard.name: <your-network>`) or run `docker network connect <your-network> sonarqube-cicd-demo`.
 
 ### Post actions
 
