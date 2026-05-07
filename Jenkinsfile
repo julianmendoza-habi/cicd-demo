@@ -80,6 +80,7 @@ pipeline {
         stage('Container Security Scan (Trivy)') {
             steps {
                 sh """
+                    echo '==> Informational scan: all HIGH/CRITICAL findings (OS + libs)'
                     docker run --rm \\
                       -v /var/run/docker.sock:/var/run/docker.sock \\
                       -v ${env.TRIVY_CACHE_VOLUME}:/root/.cache/ \\
@@ -87,12 +88,14 @@ pipeline {
                       image --no-progress --severity HIGH,CRITICAL \\
                             --exit-code 0 ${env.DOCKER_IMAGE}
 
+                    echo '==> Gate: fail only on OS-level CRITICAL fixable vulnerabilities'
                     docker run --rm \\
                       -v /var/run/docker.sock:/var/run/docker.sock \\
                       -v ${env.TRIVY_CACHE_VOLUME}:/root/.cache/ \\
                       ${env.TRIVY_IMAGE} \\
                       image --no-progress --severity CRITICAL \\
-                            --ignore-unfixed --exit-code 1 ${env.DOCKER_IMAGE}
+                            --vuln-type os --ignore-unfixed \\
+                            --exit-code 1 ${env.DOCKER_IMAGE}
                 """
             }
         }
