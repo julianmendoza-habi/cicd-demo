@@ -34,6 +34,8 @@ public class SeleniumExampleTest {
 
     @After
     public void afterTest() {
-        driver.quit();
+        if (driver != null) {
+            driver.quit();
+        }
     }
 }
