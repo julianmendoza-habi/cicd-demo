@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fails if SonarQube reports any Security Hotspot still in TO_REVIEW status.
-# Pure POSIX shell parsing — no python / jq dependency, so it runs on
+# Pure POSIX shell parsing â€” no python / jq dependency, so it runs on
 # minimal Jenkins agent images (e.g. jenkins/jenkins:lts).
 set -euo pipefail
 
