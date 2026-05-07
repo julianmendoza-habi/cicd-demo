@@ -101,12 +101,6 @@ pipeline {
         }
 
         stage('Deploy') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'master'
-                }
-            }
             steps {
                 sh """
                     docker rm -f ${env.DEPLOY_CONTAINER} || true
