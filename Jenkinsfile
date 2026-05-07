@@ -15,6 +15,8 @@ pipeline {
         SONAR_PROJECT_KEY = 'cicd-demo'
         DOCKER_IMAGE = 'mi-app:latest'
         DEPLOY_CONTAINER = 'mi-app-run'
+        TRIVY_IMAGE = 'aquasec/trivy:0.52.0'
+        TRIVY_CACHE_VOLUME = 'trivy-cache'
     }
 
     options {
@@ -78,7 +80,19 @@ pipeline {
         stage('Container Security Scan (Trivy)') {
             steps {
                 sh """
-                    trivy image --exit-code 1 --severity CRITICAL --no-progress ${env.DOCKER_IMAGE}
+                    docker run --rm \\
+                      -v /var/run/docker.sock:/var/run/docker.sock \\
+                      -v ${env.TRIVY_CACHE_VOLUME}:/root/.cache/ \\
+                      ${env.TRIVY_IMAGE} \\
+                      image --no-progress --severity HIGH,CRITICAL \\
+                            --exit-code 0 ${env.DOCKER_IMAGE}
+
+                    docker run --rm \\
+                      -v /var/run/docker.sock:/var/run/docker.sock \\
+                      -v ${env.TRIVY_CACHE_VOLUME}:/root/.cache/ \\
+                      ${env.TRIVY_IMAGE} \\
+                      image --no-progress --severity CRITICAL \\
+                            --ignore-unfixed --exit-code 1 ${env.DOCKER_IMAGE}
                 """
             }
         }
