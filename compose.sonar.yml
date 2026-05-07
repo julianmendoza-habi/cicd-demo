@@ -1,0 +1,21 @@
+# Local SonarQube for pipeline integration (assignment §3).
+# Start: docker compose -f compose.sonar.yml up -d
+# UI: http://localhost:9000  (default login admin / admin — change password on first login)
+# Create project key matching SONAR_PROJECT_KEY in Jenkinsfile (default: cicd-demo).
+services:
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube-cicd-demo
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:

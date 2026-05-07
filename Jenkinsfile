@@ -1,93 +1,112 @@
 #!/usr/bin/env groovy
 
 pipeline {
-    environment{
-       FEATURE_NAME = BRANCH_NAME.replaceAll('[\\(\\)_/]','-').toLowerCase()
-       REGISTRY_PASSWORD = credentials('REGISTRY_PASSWORD')
-       REGISTRY_USERNAME = credentials('REGISTRY_USERNAME')
-       POSTGRES_PASSWORD = credentials('POSTGRES_PASSWORD')
-       APP_NAME = "cicd-demo"
+    agent any
+
+    parameters {
+        string(
+            name: 'SONAR_HOST_URL',
+            defaultValue: 'http://localhost:9000',
+            description: 'SonarQube base URL reachable from the Jenkins agent (use http://host.docker.internal:9000 if the agent runs in Docker on Windows/macOS).'
+        )
     }
-    agent any 
+
+    environment {
+        SONAR_PROJECT_KEY = 'cicd-demo'
+        DOCKER_IMAGE = 'mi-app:latest'
+        DEPLOY_CONTAINER = 'mi-app-run'
+    }
+
+    options {
+        timestamps()
+        skipDefaultCheckout(true)
+    }
+
     stages {
-        stage('Docker Build & Push') {
+        stage('Checkout') {
             steps {
-                sh "make dockerLogin build dockerBuild dockerPush"
-            }
-
-        }
-		// not in parallel due to race condition with .env
-        stage('Docker Scan') {
-            steps {
-                sh "make dockerScan"
-            }
-            post {
-                cleanup {
-                    sh "docker-compose down -v"
-                }
-            }
-        }
-        
-        stage('Parallel Tests') {
-            failFast true            
-            parallel {                  
-                stage('Static Code Analysis') {
-                    when {
-                        anyOf { branch 'master'; branch 'release'}
-                    }    
-                    steps {
-                        sh "make publishSonar"                        
-                    }
-                }
-                stage('Integration Tests') {
-                    steps {
-                        sh "make integrationTest"
-                    }
-                }
-            }
-        }
-        stage('Push Latest Tag') {
-            when { branch 'master' }
-            steps {
-                sh "make dockerPushLatest"
+                checkout scm
             }
         }
 
-        stage('Deploy To dev') {
-            environment { 
-                ENV = "dev"
-                APP_DNS = util.selectAppUrl(ENV, FEATURE_NAME, APP_NAME)
-                KUBE_SERVER = credentials("KUBE_API_SERVER")
-                KUBE_TOKEN = credentials("KUBE_DEV_TOKEN")
-            }
+        stage('Build') {
             steps {
-                sh "make kubeLogin deploy"
+                sh 'chmod +x mvnw || true'
+                sh './mvnw -B -ntp clean compile'
             }
         }
-        
-        stage('Deploy To qa') {
-            when { expression { BRANCH_NAME ==~ /(master|release-[0-9]+$)/ }} // Only Master and Release branches 
-            environment { 
-                ENV = "qa"
-                APP_DNS = util.selectAppUrl(ENV, FEATURE_NAME, APP_NAME)
-                KUBE_SERVER = credentials("KUBE_API_SERVER")
-                KUBE_TOKEN = credentials("KUBE_QA_TOKEN")
-            }
+
+        stage('Test') {
             steps {
-                sh "make kubeLogin deploy"
+                sh './mvnw -B -ntp test'
             }
         }
-        
+
+        stage('Docker Build') {
+            steps {
+                sh './mvnw -B -ntp package -DskipTests'
+                sh "docker build -t ${env.DOCKER_IMAGE} ."
+            }
+        }
+
+        stage('Static Analysis (SonarQube)') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh """
+                        ./mvnw -B -ntp sonar:sonar \\
+                          -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} \\
+                          -Dsonar.host.url='${params.SONAR_HOST_URL}' \\
+                          -Dsonar.login=\${SONAR_TOKEN} \\
+                          -Dsonar.qualitygate.wait=true
+                    """
+                }
+            }
+        }
+
+        stage('Quality Gate (Security Hotspots)') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh """
+                        export SONAR_HOST_URL='${params.SONAR_HOST_URL}'
+                        export SONAR_PROJECT_KEY='${env.SONAR_PROJECT_KEY}'
+                        bash jenkins/check-sonar-hotspots.sh
+                    """
+                }
+            }
+        }
+
+        stage('Container Security Scan (Trivy)') {
+            steps {
+                sh """
+                    trivy image --exit-code 1 --severity CRITICAL --no-progress ${env.DOCKER_IMAGE}
+                """
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                }
+            }
+            steps {
+                sh """
+                    docker rm -f ${env.DEPLOY_CONTAINER} || true
+                    docker run -d --name ${env.DEPLOY_CONTAINER} -p 80:80 ${env.DOCKER_IMAGE}
+                """
+            }
+        }
     }
+
     post {
+        failure {
+            echo 'Pipeline failed: review unit tests, SonarQube (Quality Gate / Security Hotspots), or Trivy CRITICAL findings. Configure mailer or Slack separately if you need external notifications.'
+        }
         always {
-            script {
-                if(BRANCH_NAME ==~ /(master|release-[0-9]+$)/ ){
-                     util.notifySlack(currentBuild.result)
-                 }
-            }
-            archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-            junit 'target/surefire-reports/*.xml'
+            echo 'Limpiando entorno...'
+            junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
+            cleanWs()
         }
     }
 }

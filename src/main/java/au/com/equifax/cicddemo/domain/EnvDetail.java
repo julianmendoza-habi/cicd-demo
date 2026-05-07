@@ -4,6 +4,8 @@ public class EnvDetail {
     private String ip;
     private String hostname;
     private String os;
+    /** Demo banner returned by {@code /} for CI/CD visibility. */
+    private String message;
 
     public String getIp() {
         return ip;
@@ -27,5 +29,13 @@ public class EnvDetail {
 
     public void setOs(String os) {
         this.os = os;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 }

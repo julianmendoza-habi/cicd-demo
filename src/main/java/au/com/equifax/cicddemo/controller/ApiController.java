@@ -17,6 +17,7 @@ public class ApiController {
         env.setHostname(inetAddress.getHostName());
         env.setIp(inetAddress.getHostAddress());
         env.setOs(System.getProperty("os.name"));
+        env.setMessage("CI/CD pipeline demo build — verify Jenkins → Docker deploy on port 80.");
         return env;
     }
 }

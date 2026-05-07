@@ -1,0 +1,38 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<!--
+  Jenkins job export template: Pipeline from SCM (Declarative Jenkinsfile).
+
+  Import: Jenkins » New Item » Pipeline » OK » configure as below, or use
+  "Pipeline Script from SCM" with your Git URL and branch.
+
+  Replace YOUR_GIT_REPOSITORY_URL with your remote (HTTPS or SSH).
+  This XML is a reference for the deliverable "export del job"; adjust plugin
+  versions if Jenkins rejects the import.
+-->
+<flow-definition plugin="workflow-job@2.45">
+  <description>CI/CD demo: Spring Boot build, SonarQube, Trivy, Docker deploy (reads Jenkinsfile from repo).</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.94">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git@5.2.0">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>YOUR_GIT_REPOSITORY_URL</url>
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/master</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+      <submoduleCfg class="empty-list"/>
+      <extensions/>
+    </scm>
+    <scriptPath>Jenkinsfile</scriptPath>
+    <lightweight>true</lightweight>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
